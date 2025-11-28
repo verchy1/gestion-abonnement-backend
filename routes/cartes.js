@@ -78,8 +78,7 @@ router.patch('/:id/solde', auth, async (req, res) => {
 router.post('/:id/abonnements', auth, async (req, res) => {
     try {
         const { id } = req.params;
-
-        const { abonnementId, dateFin } = req.body;
+        const { abonnementId, dateFin, prixFournisseur } = req.body;
 
         if (!abonnementId || !dateFin) {
             return res.status(400).json({ message: 'abonnementId et dateFin requis' });
@@ -88,7 +87,6 @@ router.post('/:id/abonnements', auth, async (req, res) => {
         const carte = await Carte.findById(id);
         if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
 
-        // Récupérer l'emailService de l'abonnement
         const Abonnement = require('../models/Abonnement');
         const abonnement = await Abonnement.findById(abonnementId);
         if (!abonnement) return res.status(404).json({ message: 'Abonnement introuvable' });
@@ -96,6 +94,7 @@ router.post('/:id/abonnements', auth, async (req, res) => {
         carte.abonnements.push({
             service: abonnement.service,
             emailService: abonnement.emailService,
+            prixFournisseur, // 🔥 IMPORTANT
             dateFin: new Date(dateFin)
         });
 
@@ -106,6 +105,7 @@ router.post('/:id/abonnements', auth, async (req, res) => {
         res.status(500).json({ message: 'Erreur serveur', error: err.message });
     }
 });
+
 
 // DELETE /api/cartes/:id/abonnements/:index - supprimer un abonnement d'une carte (protégé)
 router.delete('/:id/abonnements/:index', auth, async (req, res) => {
