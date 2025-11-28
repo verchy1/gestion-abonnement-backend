@@ -51,6 +51,29 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// PATCH /api/cartes/:id/solde - modifier le solde d'une carte (protégé)
+router.patch('/:id/solde', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { solde } = req.body;
+    
+    if (typeof solde === 'undefined') {
+      return res.status(400).json({ message: 'Le nouveau solde est requis' });
+    }
+
+    const carte = await Carte.findById(id);
+    if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
+
+    carte.solde = Number(solde);
+    await carte.save();
+    
+    res.json({ message: 'Solde mis à jour avec succès', carte });
+  } catch (err) {
+    console.error('Erreur PATCH /api/cartes/:id/solde', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
+
 // POST /api/cartes/:id/abonnements - lier un abonnement à une carte (protégé)
 router.post('/:id/abonnements', auth, async (req, res) => {
   try {
@@ -71,6 +94,34 @@ router.post('/:id/abonnements', auth, async (req, res) => {
     res.status(201).json(carte);
   } catch (err) {
     console.error('Erreur POST /api/cartes/:id/abonnements', err);
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
+
+// DELETE /api/cartes/:id/abonnements/:index - supprimer un abonnement d'une carte (protégé)
+router.delete('/:id/abonnements/:index', auth, async (req, res) => {
+  try {
+    const { id, index } = req.params;
+    const abonnementIndex = parseInt(index, 10);
+
+    if (isNaN(abonnementIndex) || abonnementIndex < 0) {
+      return res.status(400).json({ message: 'Index d\'abonnement invalide' });
+    }
+
+    const carte = await Carte.findById(id);
+    if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
+
+    if (!carte.abonnements || abonnementIndex >= carte.abonnements.length) {
+      return res.status(404).json({ message: 'Abonnement non trouvé à cet index' });
+    }
+
+    // Supprimer l'abonnement à l'index spécifié
+    carte.abonnements.splice(abonnementIndex, 1);
+    await carte.save();
+
+    res.json({ message: 'Abonnement supprimé avec succès', carte });
+  } catch (err) {
+    console.error('Erreur DELETE /api/cartes/:id/abonnements/:index', err);
     res.status(500).json({ message: 'Erreur serveur', error: err.message });
   }
 });
