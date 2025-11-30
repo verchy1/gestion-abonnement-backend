@@ -9,7 +9,7 @@ const app = express();
 
 //Middlewares
 // const corsOptions = {
-//   origin: ['http://localhost:3000', 'http://localhost:5173',],
+//   origin: ['http://localhost:5173',],
 //   credentials: true
 // };
 
@@ -34,6 +34,7 @@ app.use('/api/vendeurs', require('./routes/vendeur'));
 app.use('/api/paiements', require('./routes/paiement'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/cartes', require('./routes/cartes'));
+app.use('/api/admin', require('./routes/administrateur'));
 
 // Route de test
 app.get('/', (req, res) => {

@@ -9,7 +9,7 @@ router.post('/login', async (req, res) => {
   try {
     const { identifiant, motDePasse } = req.body;
 
-    const admin = await Admin.findOne({ identifiant });
+    const admin = await Admin.findOne({ identifiant }).select('+motDePasse');
     if (!admin) {
       return res.status(401).json({ message: 'Identifiants incorrects' });
     }
