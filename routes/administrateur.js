@@ -23,7 +23,7 @@ router.get('/profile', auth, async (req, res) => {
 // PATCH - Mettre à jour le profil
 router.patch('/profile', auth, async (req, res) => {
   try {
-    const { nom, email, telephone } = req.body;
+    const { nom, email, telephone, identifiant } = req.body;
     
     // Validation
     if (!nom || !email) {
@@ -33,10 +33,10 @@ router.patch('/profile', auth, async (req, res) => {
     }
 
     // Vérifier si l'email existe déjà (pour un autre admin)
-    if (email !== req.body.emailActuel) {
+    if (email !== req.admin.email) {
       const emailExists = await Admin.findOne({ 
         email, 
-        _id: { $ne: req.adminId } 
+        _id: { $ne: req.admin._id } 
       });
       
       if (emailExists) {
@@ -48,8 +48,8 @@ router.patch('/profile', auth, async (req, res) => {
 
     // Mise à jour
     const admin = await Admin.findByIdAndUpdate(
-      req.adminId,
-      { nom, email, telephone },
+      req.admin._id,
+      { nom, email, telephone,identifiant },
       { new: true, runValidators: true }
     ).select('-motDePasse');
 
@@ -90,7 +90,7 @@ router.patch('/profile/password', auth, async (req, res) => {
     }
 
     // Récupérer l'admin avec le mot de passe
-    const admin = await Admin.findById(req.adminId).select('+motDePasse');
+    const admin = await Admin.findById(req.admin._id).select('+motDePasse');
     
     if (!admin) {
       return res.status(404).json({ message: 'Admin non trouvé' });

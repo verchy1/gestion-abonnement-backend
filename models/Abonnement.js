@@ -1,5 +1,37 @@
 const mongoose = require('mongoose');
 
+// Schéma pour un profil individuel
+const profilSchema = new mongoose.Schema({
+  nom: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  codePIN: {
+    type: String,
+    required: true,
+    minlength: 4,
+    maxlength: 6
+  },
+  utilisateurId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Utilisateur',
+    default: null
+  },
+  avatar: {
+    type: String,
+    default: 'default'
+  },
+  estEnfant: {
+    type: Boolean,
+    default: false
+  },
+  dateAssignation: {
+    type: Date,
+    default: null
+  }
+}, { _id: true });
+
 const abonnementSchema = new mongoose.Schema({
   service: {
     type: String,
@@ -42,7 +74,40 @@ const abonnementSchema = new mongoose.Schema({
   credentials: {
     email: String,
     password: String
+  },
+  profils: {
+    type: [profilSchema],
+    default: []
   }
 }, { timestamps: true });
+
+// ✅ MIDDLEWARE ASYNCHRONE (sans next)
+abonnementSchema.pre('save', async function() {
+  // Si c'est un nouvel abonnement et qu'il n'y a pas de profils
+  if (this.isNew && (!this.profils || this.profils.length === 0)) {
+    this.profils = [];
+    
+    // Créer automatiquement les profils selon le nombre de slots
+    for (let i = 1; i <= this.slots; i++) {
+      this.profils.push({
+        nom: `Profil ${i}`,
+        codePIN: Math.floor(1000 + Math.random() * 9000).toString(),
+        utilisateurId: null,
+        avatar: 'default',
+        estEnfant: false
+      });
+    }
+  }
+});
+
+// Méthode pour obtenir les profils disponibles
+abonnementSchema.methods.getProfilsDisponibles = function() {
+  return this.profils.filter(p => !p.utilisateurId);
+};
+
+// Méthode pour obtenir les profils occupés
+abonnementSchema.methods.getProfilsOccupes = function() {
+  return this.profils.filter(p => p.utilisateurId !== null);
+};
 
 module.exports = mongoose.model('Abonnement', abonnementSchema);

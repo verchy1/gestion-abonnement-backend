@@ -18,6 +18,8 @@ module.exports = async (req, res, next) => {
 
     req.admin = admin;
     req.admin.identifiant = admin.identifiant;
+    req.admin._id = admin._id,
+    req.admin.email = admin.email;
     next();
   } catch (error) {
     // Soit tu envoies la réponse directement
