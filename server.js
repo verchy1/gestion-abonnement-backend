@@ -8,15 +8,15 @@ dotenv.config();
 const app = express();
 
 //Middlewares
-const corsOptions = {
-  origin: ['http://localhost:5173',],
-  credentials: true
-};
-
 // const corsOptions = {
-//   origin: ['https://subscmanager.netlify.app'],
+//   origin: ['http://localhost:5173',],
 //   credentials: true
 // };
+
+const corsOptions = {
+  origin: ['https://subscmanager.netlify.app'],
+  credentials: true
+};
 
 app.use(cors(corsOptions));
 app.use(express.json());
