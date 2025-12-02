@@ -3,12 +3,38 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Abonnement = require('../models/Abonnement');
+const { decrypt } = require("../utils/encryption");
 
 // Récupérer tous les abonnements
 router.get('/', auth, async (req, res) => {
   try {
-    const abonnements = await Abonnement.find().populate('vendeurId');
-    res.json(abonnements);
+    const abonnements = await Abonnement.find()
+      .populate('vendeurId')
+      .populate('profils.utilisateurId')
+      .sort({ createdAt: -1 });
+
+    // 🧠 Déchiffrer les credentials
+    const data = abonnements.map(a => {
+      let passwordDecrypted = null;
+
+      if (a.credentials?.password) {
+        try {
+          passwordDecrypted = decrypt(a.credentials.password);
+        } catch (err) {
+          passwordDecrypted = null;
+        }
+      }
+
+      return {
+        ...a.toObject(),
+        credentials: {
+          email: a.credentials.email,
+          password: passwordDecrypted
+        }
+      };
+    });
+
+    res.json(data);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -19,18 +45,33 @@ router.post('/', auth, async (req, res) => {
   try {
     // Retirez profils si envoyé
     const { profils, ...abonnementData } = req.body;
-    
+
     const abonnement = new Abonnement(abonnementData);
     await abonnement.save();
-    
+
     res.status(201).json(abonnement);
   } catch (error) {
     console.error('❌ Erreur création:', error); // DEBUG
-    res.status(400).json({ 
-      message: 'Erreur création', 
+    res.status(400).json({
+      message: 'Erreur création',
       error: error.message,
       details: error.errors // Erreurs de validation Mongoose
     });
+  }
+});
+
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const abonnement = await Abonnement.findById(req.params.id)
+      .populate('vendeurId')
+      .populate('profils.utilisateurId');
+
+    if (!abonnement) {
+      return res.status(404).json({ message: 'Abonnement non trouvé' });
+    }
+    res.json(abonnement);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 });
 
@@ -139,6 +180,9 @@ router.patch('/:id/profils/:profilId', auth, async (req, res) => {
     if (estEnfant !== undefined) profil.estEnfant = estEnfant;
 
     await abonnement.save();
+
+    await abonnement.populate('profils.utilisateurId');
+
     res.json(abonnement);
   } catch (error) {
     res.status(400).json({ message: 'Erreur modification profil', error: error.message });
@@ -168,9 +212,10 @@ router.patch('/:id/profils/:profilId/assigner', auth, async (req, res) => {
 
     profil.utilisateurId = utilisateurId;
     profil.dateAssignation = new Date();
-    abonnement.utilises = abonnement.profils.filter(p => p.utilisateurId).length;
 
     await abonnement.save();
+
+    await abonnement.populate('profils.utilisateurId');
     res.json(abonnement);
   } catch (error) {
     res.status(400).json({ message: 'Erreur assignation profil', error: error.message });
@@ -194,9 +239,11 @@ router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
 
     profil.utilisateurId = null;
     profil.dateAssignation = null;
-    abonnement.utilises = abonnement.profils.filter(p => p.utilisateurId).length;
 
     await abonnement.save();
+
+    await abonnement.populate('profils.utilisateurId');
+
     res.json(abonnement);
   } catch (error) {
     res.status(400).json({ message: 'Erreur libération profil', error: error.message });

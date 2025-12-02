@@ -25,15 +25,21 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
     }
 
-    if (abonnement.utilises >= abonnement.slots) {
-      return res.status(400).json({ message: 'Plus de places disponibles' });
+    // ✅ NOUVEAU : Vérifier via les profils disponibles
+    const profilsDisponibles = abonnement.profils.filter(p => !p.utilisateurId);
+    
+    if (profilsDisponibles.length === 0) {
+      return res.status(400).json({ message: 'Plus de profils disponibles' });
     }
 
     const utilisateur = new Utilisateur(req.body);
     await utilisateur.save();
 
-    // Incrémenter le nombre de slots utilisés
-    abonnement.utilises += 1;
+    // ✅ NOUVEAU : Assigner automatiquement le premier profil disponible
+    const premierProfilDispo = profilsDisponibles[0];
+    premierProfilDispo.utilisateurId = utilisateur._id;
+    premierProfilDispo.dateAssignation = new Date();
+    
     await abonnement.save();
 
     res.status(201).json(utilisateur);
@@ -68,10 +74,19 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
 
-    // Décrémenter le nombre de slots utilisés
-    await Abonnement.findByIdAndUpdate(utilisateur.abonnementId, {
-      $inc: { utilises: -1 }
-    });
+    // ✅ NOUVEAU : Libérer le profil associé
+    const abonnement = await Abonnement.findById(utilisateur.abonnementId);
+    if (abonnement) {
+      const profilAssocie = abonnement.profils.find(
+        p => p.utilisateurId && p.utilisateurId.toString() === utilisateur._id.toString()
+      );
+      
+      if (profilAssocie) {
+        profilAssocie.utilisateurId = null;
+        profilAssocie.dateAssignation = null;
+        await abonnement.save();
+      }
+    }
 
     res.json({ message: 'Utilisateur supprimé' });
   } catch (error) {

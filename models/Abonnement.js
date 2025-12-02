@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { encrypt } = require("../utils/encryption");
 
 // Schéma pour un profil individuel
 const profilSchema = new mongoose.Schema({
@@ -32,6 +33,7 @@ const profilSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
+// models/Abonnement.js
 const abonnementSchema = new mongoose.Schema({
   service: {
     type: String,
@@ -47,10 +49,7 @@ const abonnementSchema = new mongoose.Schema({
     required: true,
     min: 1
   },
-  utilises: {
-    type: Number,
-    default: 0
-  },
+  // ❌ SUPPRIMÉ : utilises (calculé dynamiquement maintenant)
   proprio: {
     type: String,
     enum: ['Moi', 'Vendeur'],
@@ -80,6 +79,22 @@ const abonnementSchema = new mongoose.Schema({
     default: []
   }
 }, { timestamps: true });
+
+abonnementSchema.pre("save", async function () {
+  // Crypter uniquement si le champ a été modifié
+  if (this.isModified("credentials.password") && this.credentials.password) {
+    this.credentials.password = encrypt(this.credentials.password);
+  }
+});
+
+// ✅ NOUVEAU : Virtual pour calculer dynamiquement le nombre d'utilisés
+abonnementSchema.virtual('utilises').get(function() {
+  return this.profils.filter(p => p.utilisateurId !== null).length;
+});
+
+// Important pour que les virtuals apparaissent dans JSON
+abonnementSchema.set('toJSON', { virtuals: true });
+abonnementSchema.set('toObject', { virtuals: true });
 
 // ✅ MIDDLEWARE ASYNCHRONE (sans next)
 abonnementSchema.pre('save', async function() {
