@@ -8,15 +8,15 @@ dotenv.config();
 const app = express();
 
 //Middlewares
-// const corsOptions = {
-//   origin: ['http://localhost:5173',],
-//   credentials: true
-// };
-
 const corsOptions = {
-  origin: ['https://subscmanager.netlify.app'],
+  origin: ['http://localhost:5173',],
   credentials: true
 };
+
+// const corsOptions = {
+//   origin: ['https://subscmanager.netlify.app'],
+//   credentials: true
+// };
 
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -35,6 +35,7 @@ app.use('/api/paiements', require('./routes/paiement'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/cartes', require('./routes/cartes'));
 app.use('/api/admin', require('./routes/administrateur'));
+app.use('/api/recu', require('./routes/recu'));
 
 // Route de test
 app.get('/', (req, res) => {
