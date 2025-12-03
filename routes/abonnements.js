@@ -1,11 +1,13 @@
+
 // routes/abonnements.js
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Abonnement = require('../models/Abonnement');
+const Carte = require('../models/Carte'); 
 const { decrypt } = require("../utils/encryption");
 
-// Récupérer tous les abonnements
+// Récupérer tous les abonnements avec prix fournisseur des cartes
 router.get('/', auth, async (req, res) => {
   try {
     const abonnements = await Abonnement.find()
@@ -13,7 +15,10 @@ router.get('/', auth, async (req, res) => {
       .populate('profils.utilisateurId')
       .sort({ createdAt: -1 });
 
-    // 🧠 Déchiffrer les credentials
+    // 🆕 Récupérer toutes les cartes pour obtenir les prix fournisseurs
+    const cartes = await Carte.find();
+
+    // 🧠 Déchiffrer les credentials et ajouter prixFournisseur
     const data = abonnements.map(a => {
       let passwordDecrypted = null;
 
@@ -25,10 +30,25 @@ router.get('/', auth, async (req, res) => {
         }
       }
 
+      // 🆕 RECHERCHER le prixFournisseur dans les cartes
+      let prixFournisseur = 0;
+      
+      for (const carte of cartes) {
+        const abonnementCarte = carte.abonnements.find(
+          ab => ab.service === a.service && ab.emailService === a.emailService
+        );
+        
+        if (abonnementCarte && abonnementCarte.prixFournisseur) {
+          prixFournisseur = abonnementCarte.prixFournisseur;
+          break; // On prend le premier trouvé
+        }
+      }
+
       return {
         ...a.toObject(),
+        prixFournisseur, // 🆕 Ajout du prix fournisseur
         credentials: {
-          email: a.credentials.email,
+          email: a.credentials?.email || '',
           password: passwordDecrypted
         }
       };
