@@ -19,7 +19,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json()); 
 
 // Connexion MongoDB
 mongoose.connect(process.env.MONGODB_URI)
