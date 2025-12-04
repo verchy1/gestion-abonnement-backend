@@ -1,6 +1,7 @@
-require('dotenv').config();
 const mongoose = require('mongoose');
 const Admin = require('../models/Admin');
+const dotenv = require('dotenv');
+dotenv.config({ path: __dirname + '/../.env' });
 
 async function run() {
   try {
@@ -8,16 +9,16 @@ async function run() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connecté à MongoDB');
 
-    const identifiant = process.argv[2] || 'admin';
-    const motDePasse = process.argv[3] || 'admin123';
-    const nom = process.argv[4] || 'Super Admin';
-    const email = process.argv[5] || 'admin@example.com';
+    const identifiant = 'alpha';
+    const motDePasse = 'admin1234';
+    const nom = 'Super Admin2';
+    const email = 'admin@example2.com';
 
-    const existing = await Admin.findOne({ $or: [{ identifiant }, { email }] });
-    if (existing) {
-      console.log('⚠️ Admin déjà présent:', existing.identifiant);
-      return process.exit(0);
-    }
+    // const existing = await Admin.findOne({ $or: [{ identifiant }, { email }] });
+    // if (existing) {
+    //   console.log('⚠️ Admin déjà présent:', existing.identifiant);
+    //   return process.exit(0);
+    // }
 
     const admin = new Admin({ identifiant, motDePasse, nom, email });
     await admin.save();

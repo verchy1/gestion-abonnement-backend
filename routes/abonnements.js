@@ -10,13 +10,13 @@ const { decrypt } = require("../utils/encryption");
 // Récupérer tous les abonnements avec prix fournisseur des cartes
 router.get('/', auth, async (req, res) => {
   try {
-    const abonnements = await Abonnement.find()
+    const abonnements = await Abonnement.find({ adminId: req.adminId })
       .populate('vendeurId')
       .populate('profils.utilisateurId')
       .sort({ createdAt: -1 });
 
     // 🆕 Récupérer toutes les cartes pour obtenir les prix fournisseurs
-    const cartes = await Carte.find();
+    const cartes = await Carte.find({ adminId: req.adminId });
 
     // 🧠 Déchiffrer les credentials et ajouter prixFournisseur
     const data = abonnements.map(a => {
@@ -35,7 +35,7 @@ router.get('/', auth, async (req, res) => {
 
       for (const carte of cartes) {
         const abonnementCarte = carte.abonnements.find(
-          ab => ab.service === a.service && ab.emailService === a.emailService
+          ab => ab.service === a.service && ab.emailService === a.emailService && carte.adminId.toString() === req.adminId,
         );
 
         if (abonnementCarte && abonnementCarte.prixFournisseur) {
@@ -64,7 +64,14 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     // Retirez profils si envoyé
-    const { profils, ...abonnementData } = req.body;
+    // const { profils, ...abonnementData } = req.body;
+    // abonnementData.adminId = req.adminId;
+
+    const abonnementData = {
+      ...req.body,
+      adminId: req.adminId,
+      profils: profils
+    };
 
     const abonnement = new Abonnement(abonnementData);
     await abonnement.save();
@@ -83,7 +90,10 @@ router.post('/', auth, async (req, res) => {
 // Modifier un abonnement
 router.put('/:id', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id,
+      adminId: req.adminId  // 🆕 Sécurité
+    })
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -115,9 +125,10 @@ router.put('/:id', auth, async (req, res) => {
 // Récupérer un abonnement par ID
 router.get('/:id', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.params.id)
-      .populate('vendeurId')
-      .populate('profils.utilisateurId');
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id,
+      adminId: req.adminId
+    }).populate('vendeurId').populate('profils.utilisateurId');
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -131,15 +142,26 @@ router.get('/:id', auth, async (req, res) => {
 // Modifier un abonnement
 router.put('/:id', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id,
+      adminId: req.adminId
+    });
+
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
     }
-    res.json(abonnement);
+
+    // Validation des slots...
+    const abonnementModifie = await Abonnement.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('vendeurId');
+
+    if (!abonnementModifie) {
+      return res.status(404).json({ message: 'Abonnement non trouvé' });
+    }
+    res.json(abonnementModifie);
   } catch (error) {
     res.status(400).json({ message: 'Erreur modification', error: error.message });
   }
@@ -148,10 +170,15 @@ router.put('/:id', auth, async (req, res) => {
 // Supprimer un abonnement
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findByIdAndDelete(req.params.id);
+    const abonnement = await Abonnement.findOneAndDelete({
+      _id: req.params.id,
+      adminId: req.adminId
+    });
+
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
     }
+
     res.json({ message: 'Abonnement supprimé' });
   } catch (error) {
     res.status(500).json({ message: 'Erreur suppression', error: error.message });
@@ -161,7 +188,10 @@ router.delete('/:id', auth, async (req, res) => {
 // 🆕 GET - Récupérer les profils d'un abonnement
 router.get('/:id/profils', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.params.id).populate('profils.utilisateurId', 'nom telephone');
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id,
+      adminId: req.adminId
+    }).populate('profils.utilisateurId', 'nom telephone');
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -183,7 +213,10 @@ router.post('/:id/profils', auth, async (req, res) => {
       return res.status(400).json({ message: "Nom et code PIN requis" });
     }
 
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({ 
+      _id: req.params.id, 
+      adminId: req.adminId 
+    });
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -214,7 +247,10 @@ router.patch('/:id/profils/:profilId', auth, async (req, res) => {
   try {
     const { nom, codePIN, avatar, estEnfant } = req.body;
 
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id, 
+      adminId: req.adminId 
+    });
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -247,7 +283,10 @@ router.patch('/:id/profils/:profilId/assigner', auth, async (req, res) => {
   try {
     const { utilisateurId } = req.body;
 
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id, 
+      adminId: req.adminId 
+    });
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -278,7 +317,10 @@ router.patch('/:id/profils/:profilId/assigner', auth, async (req, res) => {
 // 🆕 PATCH - Libérer un profil
 router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id, 
+      adminId: req.adminId 
+    });
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -306,7 +348,10 @@ router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
 // 🆕 DELETE - Supprimer un profil
 router.delete('/:id/profils/:profilId', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.params.id);
+    const abonnement = await Abonnement.findOne({
+      _id: req.params.id, 
+      adminId: req.adminId 
+    });
 
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });

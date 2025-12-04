@@ -6,7 +6,7 @@ const Carte = require('../models/Carte');
 // GET /api/cartes - liste toutes les cartes (protégé)
 router.get('/', auth, async (req, res) => {
     try {
-        const cartes = await Carte.find().sort({ createdAt: -1 });
+        const cartes = await Carte.find({ adminId: req.adminId }).sort({ createdAt: -1 });
 
         // Enrichir les cartes avec les emailService des abonnements
         const cartesEnrichies = await Promise.all(cartes.map(async (carte) => {
@@ -14,7 +14,7 @@ router.get('/', auth, async (req, res) => {
             if (carteObj.abonnements && carteObj.abonnements.length > 0) {
                 carteObj.abonnements = await Promise.all(carteObj.abonnements.map(async (abo) => {
                     if (!abo.emailService) {
-                        const abonnement = await require('../models/Abonnement').findOne({ service: abo.service });
+                        const abonnement = await require('../models/Abonnement').findOne({ service: abo.service, adminId: req.adminId });
                         abo.emailService = abonnement?.emailService || 'N/A';
                     }
                     return abo;
@@ -34,6 +34,10 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
     try {
         const { code, solde, abonnements } = req.body;
+        const carteData = {
+            ...req.body,
+            adminId: req.adminId
+        };
         if (!code || typeof solde === 'undefined') {
             return res.status(400).json({ message: 'code et solde requis' });
         }
@@ -42,7 +46,7 @@ router.post('/', auth, async (req, res) => {
         const exists = await Carte.findOne({ code });
         if (exists) return res.status(400).json({ message: 'Code de carte déjà existant' });
 
-        const carte = new Carte({ code, solde: Number(solde) || 0, abonnements: abonnements || [] });
+        const carte = new Carte(carteData);
         await carte.save();
         res.status(201).json(carte);
     } catch (err) {
@@ -61,7 +65,7 @@ router.patch('/:id/solde', auth, async (req, res) => {
             return res.status(400).json({ message: 'Le nouveau solde est requis' });
         }
 
-        const carte = await Carte.findById(id);
+        const carte = await Carte.findOne({ _id: id, adminId: req.adminId });
         if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
 
         carte.solde = Number(solde);
@@ -84,11 +88,11 @@ router.post('/:id/abonnements', auth, async (req, res) => {
             return res.status(400).json({ message: 'abonnementId et dateFin requis' });
         }
 
-        const carte = await Carte.findById(id);
+        const carte = await Carte.findOne({ _id: id, adminId: req.adminId });
         if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
 
         const Abonnement = require('../models/Abonnement');
-        const abonnement = await Abonnement.findById(abonnementId);
+        const abonnement = await Abonnement.findOne({ _id: abonnementId, adminId: req.adminId });
         if (!abonnement) return res.status(404).json({ message: 'Abonnement introuvable' });
 
         carte.abonnements.push({
@@ -117,7 +121,7 @@ router.delete('/:id/abonnements/:index', auth, async (req, res) => {
             return res.status(400).json({ message: 'Index d\'abonnement invalide' });
         }
 
-        const carte = await Carte.findById(id);
+        const carte = await Carte.findOne({ _id: id, adminId: req.adminId });
         if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
 
         if (!carte.abonnements || abonnementIndex >= carte.abonnements.length) {
@@ -139,7 +143,7 @@ router.delete('/:id/abonnements/:index', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
     try {
         const { id } = req.params;
-        const carte = await Carte.findByIdAndDelete(id);
+        const carte = await Carte.findOneAndDelete({ _id: id, adminId: req.adminId });
         if (!carte) return res.status(404).json({ message: 'Carte non trouvée' });
         res.json({ message: 'Carte supprimée' });
     } catch (err) {

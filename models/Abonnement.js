@@ -3,6 +3,11 @@ const { encrypt } = require("../utils/encryption");
 
 // Schéma pour un profil individuel
 const profilSchema = new mongoose.Schema({
+  adminId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    required: true
+  },
   nom: {
     type: String,
     required: true,
@@ -35,6 +40,11 @@ const profilSchema = new mongoose.Schema({
 
 // models/Abonnement.js
 const abonnementSchema = new mongoose.Schema({
+  adminId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    required: true
+  },
   service: {
     type: String,
     required: true,
@@ -79,6 +89,9 @@ const abonnementSchema = new mongoose.Schema({
     default: []
   }
 }, { timestamps: true });
+
+// 🆕 Index pour optimiser les requêtes
+abonnementSchema.index({ adminId: 1 });
 
 abonnementSchema.pre("save", async function () {
   // Crypter uniquement si le champ a été modifié

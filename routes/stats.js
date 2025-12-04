@@ -8,8 +8,8 @@ const Abonnement = require('../models/Abonnement');
 // Statistiques du dashboard
 router.get('/', auth, async (req, res) => {
   try {
-    const totalUtilisateurs = await Utilisateur.countDocuments({ actif: true });
-    const totalAbonnements = await Abonnement.countDocuments({ actif: true });
+    const totalUtilisateurs = await Utilisateur.countDocuments({ adminId: req.adminId, actif: true });
+    const totalAbonnements = await Abonnement.countDocuments({ adminId: req.adminId, actif: true });
     
     // Revenus du mois en cours
     const debutMois = new Date();
@@ -24,7 +24,7 @@ router.get('/', auth, async (req, res) => {
     const revenusMois = paiements.reduce((acc, p) => acc + p.montant, 0);
     const commissionsTotal = paiements.reduce((acc, p) => acc + (p.commission || 0), 0);
     
-    const paiementsEnAttente = await Utilisateur.countDocuments({ paye: false, actif: true });
+    const paiementsEnAttente = await Utilisateur.countDocuments({ adminId: req.adminId, paye: false, actif: true });
     
     res.json({
       totalUtilisateurs,

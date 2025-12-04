@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const paiementSchema = new mongoose.Schema({
+   adminId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    required: true
+  },
   utilisateurId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Utilisateur',
@@ -41,5 +46,7 @@ const paiementSchema = new mongoose.Schema({
     type: String
   }
 }, { timestamps: true });
+
+paiementSchema.index({ adminId: 1 });
 
 module.exports = mongoose.model('Paiement', paiementSchema);

@@ -4,7 +4,7 @@ const Admin = require('../models/Admin');
 module.exports = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ message: 'Accès non autorisé' });
     }
@@ -20,6 +20,7 @@ module.exports = async (req, res, next) => {
     req.admin.identifiant = admin.identifiant;
     req.admin._id = admin._id,
     req.admin.email = admin.email;
+    req.adminId = decoded.id;
     next();
   } catch (error) {
     // Soit tu envoies la réponse directement

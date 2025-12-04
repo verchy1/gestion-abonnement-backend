@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const utilisateurSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    required: true
+  },
   nom: {
     type: String,
     required: true,
@@ -50,5 +55,8 @@ const utilisateurSchema = new mongoose.Schema({
     type: String
   }
 }, { timestamps: true });
+
+// 🆕 Index pour optimiser les requêtes
+utilisateurSchema.index({ adminId: 1 });
 
 module.exports = mongoose.model('Utilisateur', utilisateurSchema);

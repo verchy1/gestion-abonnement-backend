@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const vendeurSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    required: true
+  },
   nom: {
     type: String,
     required: true
@@ -24,5 +29,8 @@ const vendeurSchema = new mongoose.Schema({
     type: String
   }
 }, { timestamps: true });
+
+// 🆕 Index pour optimiser les requêtes
+vendeurSchema.index({ adminId: 1 });
 
 module.exports = mongoose.model('Vendeur', vendeurSchema);

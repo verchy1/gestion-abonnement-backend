@@ -7,7 +7,7 @@ const Abonnement = require('../models/Abonnement');
 // Récupérer tous les utilisateurs
 router.get('/', auth, async (req, res) => {
   try {
-    const utilisateurs = await Utilisateur.find()
+    const utilisateurs = await Utilisateur.find({ adminId: req.adminId })
       .populate('abonnementId')
       .sort({ createdAt: -1 });
     res.json(utilisateurs);
@@ -19,7 +19,11 @@ router.get('/', auth, async (req, res) => {
 // Créer un utilisateur
 router.post('/', auth, async (req, res) => {
   try {
-    const abonnement = await Abonnement.findById(req.body.abonnementId);
+    const abonnement = await Abonnement.findOne({
+      _id: req.body.abonnementId,
+      adminId: req.adminId
+    });
+    
     
     if (!abonnement) {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
@@ -32,7 +36,11 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Plus de profils disponibles' });
     }
 
-    const utilisateur = new Utilisateur(req.body);
+
+    const utilisateur = new Utilisateur({
+      ...req.body,
+      adminId: req.adminId
+    }) ;
     await utilisateur.save();
 
     // ✅ NOUVEAU : Assigner automatiquement le premier profil disponible
@@ -51,8 +59,8 @@ router.post('/', auth, async (req, res) => {
 // Modifier le statut de paiement
 router.patch('/:id/paiement', auth, async (req, res) => {
   try {
-    const utilisateur = await Utilisateur.findByIdAndUpdate(
-      req.params.id,
+    const utilisateur = await Utilisateur.findOneAndUpdate(
+      { _id: req.params.id, adminId: req.adminId },
       { 
         paye: req.body.paye,
         datePaiement: req.body.paye ? new Date() : null
@@ -68,7 +76,7 @@ router.patch('/:id/paiement', auth, async (req, res) => {
 // Supprimer un utilisateur
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const utilisateur = await Utilisateur.findByIdAndDelete(req.params.id);
+    const utilisateur = await Utilisateur.findOneAndDelete({ _id: req.params.id, adminId: req.adminId });
     
     if (!utilisateur) {
       return res.status(404).json({ message: 'Utilisateur non trouvé' });
