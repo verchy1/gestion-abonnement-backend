@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Abonnement = require('../models/Abonnement');
-const Carte = require('../models/Carte'); 
+const Carte = require('../models/Carte');
 const { decrypt } = require("../utils/encryption");
 
 // Récupérer tous les abonnements avec prix fournisseur des cartes
@@ -32,12 +32,12 @@ router.get('/', auth, async (req, res) => {
 
       // 🆕 RECHERCHER le prixFournisseur dans les cartes
       let prixFournisseur = 0;
-      
+
       for (const carte of cartes) {
         const abonnementCarte = carte.abonnements.find(
           ab => ab.service === a.service && ab.emailService === a.emailService
         );
-        
+
         if (abonnementCarte && abonnementCarte.prixFournisseur) {
           prixFournisseur = abonnementCarte.prixFournisseur;
           break; // On prend le premier trouvé
@@ -80,6 +80,39 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Modifier un abonnement
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const abonnement = await Abonnement.findById(req.params.id);
+
+    if (!abonnement) {
+      return res.status(404).json({ message: 'Abonnement non trouvé' });
+    }
+
+    // 🆕 Validation : empêcher la réduction de slots sous le nombre utilisé
+    if (req.body.slots !== undefined) {
+      const utilises = abonnement.profils.filter(p => p.utilisateurId !== null).length;
+      if (req.body.slots < utilises) {
+        return res.status(400).json({
+          message: `Impossible de réduire à ${req.body.slots} places. ${utilises} places sont déjà utilisées.`
+        });
+      }
+    }
+
+    // Si on modifie le mot de passe, il sera automatiquement crypté par le middleware
+    const abonnementModifie = await Abonnement.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('vendeurId');
+
+    res.json(abonnementModifie);
+  } catch (error) {
+    res.status(400).json({ message: 'Erreur modification', error: error.message });
+  }
+});
+
+// Récupérer un abonnement par ID
 router.get('/:id', auth, async (req, res) => {
   try {
     const abonnement = await Abonnement.findById(req.params.id)
