@@ -99,7 +99,8 @@ router.post('/:id/abonnements', auth, async (req, res) => {
             service: abonnement.service,
             emailService: abonnement.emailService,
             prixFournisseur, // 🔥 IMPORTANT
-            dateFin: new Date(dateFin)
+            dateFin: new Date(dateFin),
+            adminId: req.adminId
         });
 
         await carte.save();
