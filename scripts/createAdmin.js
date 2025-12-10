@@ -3,6 +3,7 @@ const Admin = require('../models/Admin');
 const dotenv = require('dotenv');
 dotenv.config({ path: __dirname + '/../.env' });
 
+
 async function run() {
   try {
     if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI not set in .env');

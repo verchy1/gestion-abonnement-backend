@@ -1,4 +1,3 @@
-
 // routes/abonnements.js
 const express = require('express');
 const router = express.Router();
@@ -15,10 +14,8 @@ router.get('/', auth, async (req, res) => {
       .populate('profils.utilisateurId')
       .sort({ createdAt: -1 });
 
-    // 🆕 Récupérer toutes les cartes pour obtenir les prix fournisseurs
     const cartes = await Carte.find({ adminId: req.adminId });
 
-    // 🧠 Déchiffrer les credentials et ajouter prixFournisseur
     const data = abonnements.map(a => {
       let passwordDecrypted = null;
 
@@ -30,7 +27,6 @@ router.get('/', auth, async (req, res) => {
         }
       }
 
-      // 🆕 RECHERCHER le prixFournisseur dans les cartes
       let prixFournisseur = 0;
 
       for (const carte of cartes) {
@@ -40,13 +36,13 @@ router.get('/', auth, async (req, res) => {
 
         if (abonnementCarte && abonnementCarte.prixFournisseur) {
           prixFournisseur = abonnementCarte.prixFournisseur;
-          break; // On prend le premier trouvé
+          break;
         }
       }
 
       return {
         ...a.toObject(),
-        prixFournisseur, // 🆕 Ajout du prix fournisseur
+        prixFournisseur,
         credentials: {
           email: a.credentials?.email || '',
           password: passwordDecrypted
@@ -60,17 +56,12 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Créer un abonnement (les profils seront créés automatiquement)
+// Créer un abonnement
 router.post('/', auth, async (req, res) => {
   try {
-    // Retirez profils si envoyé
-    // const { profils, ...abonnementData } = req.body;
-    // abonnementData.adminId = req.adminId;
-
     const abonnementData = {
       ...req.body,
       adminId: req.adminId,
-      profils: profils
     };
 
     const abonnement = new Abonnement(abonnementData);
@@ -78,47 +69,12 @@ router.post('/', auth, async (req, res) => {
 
     res.status(201).json(abonnement);
   } catch (error) {
-    console.error('❌ Erreur création:', error); // DEBUG
+    console.error('❌ Erreur création:', error);
     res.status(400).json({
       message: 'Erreur création',
       error: error.message,
-      details: error.errors // Erreurs de validation Mongoose
+      details: error.errors
     });
-  }
-});
-
-// Modifier un abonnement
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const abonnement = await Abonnement.findOne({
-      _id: req.params.id,
-      adminId: req.adminId  // 🆕 Sécurité
-    })
-
-    if (!abonnement) {
-      return res.status(404).json({ message: 'Abonnement non trouvé' });
-    }
-
-    // 🆕 Validation : empêcher la réduction de slots sous le nombre utilisé
-    if (req.body.slots !== undefined) {
-      const utilises = abonnement.profils.filter(p => p.utilisateurId !== null).length;
-      if (req.body.slots < utilises) {
-        return res.status(400).json({
-          message: `Impossible de réduire à ${req.body.slots} places. ${utilises} places sont déjà utilisées.`
-        });
-      }
-    }
-
-    // Si on modifie le mot de passe, il sera automatiquement crypté par le middleware
-    const abonnementModifie = await Abonnement.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('vendeurId');
-
-    res.json(abonnementModifie);
-  } catch (error) {
-    res.status(400).json({ message: 'Erreur modification', error: error.message });
   }
 });
 
@@ -151,16 +107,22 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Abonnement non trouvé' });
     }
 
-    // Validation des slots...
+    // Validation : empêcher la réduction de slots sous le nombre utilisé
+    if (req.body.slots !== undefined) {
+      const utilises = abonnement.profils.filter(p => p.utilisateurId !== null).length;
+      if (req.body.slots < utilises) {
+        return res.status(400).json({
+          message: `Impossible de réduire à ${req.body.slots} places. ${utilises} places sont déjà utilisées.`
+        });
+      }
+    }
+
     const abonnementModifie = await Abonnement.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate('vendeurId');
+    ).populate('vendeurId').populate('profils.utilisateurId');
 
-    if (!abonnementModifie) {
-      return res.status(404).json({ message: 'Abonnement non trouvé' });
-    }
     res.json(abonnementModifie);
   } catch (error) {
     res.status(400).json({ message: 'Erreur modification', error: error.message });
@@ -185,7 +147,7 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
-// 🆕 GET - Récupérer les profils d'un abonnement
+// GET - Récupérer les profils d'un abonnement
 router.get('/:id/profils', auth, async (req, res) => {
   try {
     const abonnement = await Abonnement.findOne({
@@ -203,11 +165,10 @@ router.get('/:id/profils', auth, async (req, res) => {
   }
 });
 
-// 🆕 POST - Ajouter un profil manuellement
+// POST - Ajouter un profil manuellement
 router.post('/:id/profils', auth, async (req, res) => {
   try {
     const { nom, codePIN, avatar, estEnfant } = req.body;
-
 
     if (!nom || !codePIN) {
       return res.status(400).json({ message: "Nom et code PIN requis" });
@@ -227,22 +188,25 @@ router.post('/:id/profils', auth, async (req, res) => {
       return res.status(400).json({ message: 'Nombre maximum de profils atteint' });
     }
 
-    // Ajouter le profil
+    // Ajouter le profil avec adminId
     abonnement.profils.push({
-      nom: nom || `Profil ${abonnement.profils.length + 1}`,
-      codePIN: codePIN || Math.floor(1000 + Math.random() * 9000).toString(),
+      adminId: req.adminId,
+      nom,
+      codePIN,
       avatar: avatar || 'default',
       estEnfant: estEnfant || false
     });
 
     await abonnement.save();
+    await abonnement.populate('profils.utilisateurId');
+    
     res.status(201).json(abonnement);
   } catch (error) {
     res.status(400).json({ message: 'Erreur ajout profil', error: error.message });
   }
 });
 
-// 🆕 PATCH - Modifier un profil
+// PATCH - Modifier un profil
 router.patch('/:id/profils/:profilId', auth, async (req, res) => {
   try {
     const { nom, codePIN, avatar, estEnfant } = req.body;
@@ -263,13 +227,12 @@ router.patch('/:id/profils/:profilId', auth, async (req, res) => {
     }
 
     // Mettre à jour les champs
-    if (nom) profil.nom = nom;
-    if (codePIN) profil.codePIN = codePIN;
+    if (nom !== undefined) profil.nom = nom;
+    if (codePIN !== undefined) profil.codePIN = codePIN;
     if (avatar !== undefined) profil.avatar = avatar;
     if (estEnfant !== undefined) profil.estEnfant = estEnfant;
 
     await abonnement.save();
-
     await abonnement.populate('profils.utilisateurId');
 
     res.json(abonnement);
@@ -278,10 +241,14 @@ router.patch('/:id/profils/:profilId', auth, async (req, res) => {
   }
 });
 
-// 🆕 PATCH - Assigner un profil à un utilisateur
+// PATCH - Assigner un profil à un utilisateur
 router.patch('/:id/profils/:profilId/assigner', auth, async (req, res) => {
   try {
     const { utilisateurId } = req.body;
+
+    if (!utilisateurId) {
+      return res.status(400).json({ message: 'utilisateurId requis' });
+    }
 
     const abonnement = await Abonnement.findOne({
       _id: req.params.id, 
@@ -306,20 +273,20 @@ router.patch('/:id/profils/:profilId/assigner', auth, async (req, res) => {
     profil.dateAssignation = new Date();
 
     await abonnement.save();
-
     await abonnement.populate('profils.utilisateurId');
+    
     res.json(abonnement);
   } catch (error) {
     res.status(400).json({ message: 'Erreur assignation profil', error: error.message });
   }
 });
 
-// 🆕 PATCH - Libérer un profil
+// PATCH - Libérer un profil
 router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
   try {
     const abonnement = await Abonnement.findOne({
-      _id: req.params.id, 
-      adminId: req.adminId 
+      _id: req.params.id,
+      adminId: req.adminId
     });
 
     if (!abonnement) {
@@ -332,11 +299,15 @@ router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
       return res.status(404).json({ message: 'Profil non trouvé' });
     }
 
+    if (!profil.utilisateurId) {
+      return res.status(400).json({ message: 'Ce profil n\'est pas assigné' });
+    }
+
+    // ✅ LIBÉRER le profil
     profil.utilisateurId = null;
     profil.dateAssignation = null;
 
     await abonnement.save();
-
     await abonnement.populate('profils.utilisateurId');
 
     res.json(abonnement);
@@ -345,7 +316,7 @@ router.patch('/:id/profils/:profilId/liberer', auth, async (req, res) => {
   }
 });
 
-// 🆕 DELETE - Supprimer un profil
+// DELETE - Supprimer un profil
 router.delete('/:id/profils/:profilId', auth, async (req, res) => {
   try {
     const abonnement = await Abonnement.findOne({
@@ -369,7 +340,8 @@ router.delete('/:id/profils/:profilId', auth, async (req, res) => {
       });
     }
 
-    profil.remove();
+    // ✅ Utiliser pull au lieu de remove (deprecated)
+    abonnement.profils.pull(req.params.profilId);
     await abonnement.save();
 
     res.json({ message: 'Profil supprimé avec succès' });

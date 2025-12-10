@@ -38,7 +38,7 @@ const profilSchema = new mongoose.Schema({
   }
 }, { _id: true });
 
-// models/Abonnement.js
+// Schéma principal Abonnement
 const abonnementSchema = new mongoose.Schema({
   adminId: { 
     type: mongoose.Schema.Types.ObjectId,
@@ -59,7 +59,6 @@ const abonnementSchema = new mongoose.Schema({
     required: true,
     min: 1
   },
-  // ❌ SUPPRIMÉ : utilises (calculé dynamiquement maintenant)
   proprio: {
     type: String,
     enum: ['Moi', 'Vendeur'],
@@ -90,26 +89,26 @@ const abonnementSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// 🆕 Index pour optimiser les requêtes
+// Index pour optimiser les requêtes
 abonnementSchema.index({ adminId: 1 });
 
+// Middleware pour crypter le mot de passe
 abonnementSchema.pre("save", async function () {
-  // Crypter uniquement si le champ a été modifié
   if (this.isModified("credentials.password") && this.credentials.password) {
     this.credentials.password = encrypt(this.credentials.password);
   }
 });
 
-// ✅ NOUVEAU : Virtual pour calculer dynamiquement le nombre d'utilisés
+// Virtual pour calculer dynamiquement le nombre d'utilisés
 abonnementSchema.virtual('utilises').get(function() {
   return this.profils.filter(p => p.utilisateurId !== null).length;
 });
 
-// Important pour que les virtuals apparaissent dans JSON
+// Pour que les virtuals apparaissent dans JSON
 abonnementSchema.set('toJSON', { virtuals: true });
 abonnementSchema.set('toObject', { virtuals: true });
 
-// ✅ MIDDLEWARE ASYNCHRONE (sans next)
+// ✅ MIDDLEWARE : Créer automatiquement les profils avec adminId
 abonnementSchema.pre('save', async function() {
   // Si c'est un nouvel abonnement et qu'il n'y a pas de profils
   if (this.isNew && (!this.profils || this.profils.length === 0)) {
@@ -118,6 +117,7 @@ abonnementSchema.pre('save', async function() {
     // Créer automatiquement les profils selon le nombre de slots
     for (let i = 1; i <= this.slots; i++) {
       this.profils.push({
+        adminId: this.adminId, // ✅ IMPORTANT : Ajouter l'adminId
         nom: `Profil ${i}`,
         codePIN: Math.floor(1000 + Math.random() * 9000).toString(),
         utilisateurId: null,
