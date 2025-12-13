@@ -6,6 +6,23 @@ const Abonnement = require('../models/Abonnement');
 const Carte = require('../models/Carte');
 const { decrypt } = require("../utils/encryption");
 
+//client
+
+// Route publique pour récupérer les abonnements actifs (pour le client)
+router.get('/public', async (req, res) => {
+  try {
+    const abonnements = await Abonnement.find({ actif: true })
+      .sort({ createdAt: -1 });
+    res.json(abonnements);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+});
+
+
+
+///////////////////////////////////////////
+
 // Récupérer tous les abonnements avec prix fournisseur des cartes
 router.get('/', auth, async (req, res) => {
   try {
@@ -349,5 +366,7 @@ router.delete('/:id/profils/:profilId', auth, async (req, res) => {
     res.status(500).json({ message: 'Erreur suppression profil', error: error.message });
   }
 });
+
+
 
 module.exports = router;
