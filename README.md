@@ -158,6 +158,17 @@ Authorization: Bearer <JWT_TOKEN>
 - **POST /api/paiements** — Crée un paiement
 - **PATCH /api/paiements/:id** — Met à jour le statut de paiement
 
+### Rappels d'abonnement
+
+- **POST /api/reminders/check-expiring** — Vérifie manuellement les abonnements expirants et envoie des rappels
+  - Body: `{ "daysBefore": 7 }` (optionnel, défaut 7 jours)
+- **POST /api/reminders/test** — Test manuel du système de rappels
+
+**Système automatique :**
+- Les rappels sont envoyés automatiquement tous les jours à 9h00
+- Les utilisateurs reçoivent un SMS 7 jours avant l'expiration de leur abonnement
+- Le SMS contient les identifiants de connexion (email + mot de passe déchiffré)
+
 ---
 
 ## 🔧 Technos utilisées

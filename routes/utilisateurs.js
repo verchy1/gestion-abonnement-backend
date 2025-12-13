@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Utilisateur = require('../models/Utilisateurs');
 const Abonnement = require('../models/Abonnement');
+const {sendCredentialsSMS} = require('../services/credentials')
 
 // Récupérer tous les utilisateurs
 router.get('/', auth, async (req, res) => {
@@ -49,6 +50,7 @@ router.post('/', auth, async (req, res) => {
     premierProfilDispo.dateAssignation = new Date();
     
     await abonnement.save();
+    await sendCredentialsSMS(utilisateur, abonnement);
 
     res.status(201).json(utilisateur);
   } catch (error) {

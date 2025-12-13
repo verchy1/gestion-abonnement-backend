@@ -9,7 +9,7 @@ const app = express();
 
 //Middlewares
 // const corsOptions = {
-//   origin: ['http://localhost:5174',],
+//   origin: ['http://localhost:5173',],
 //   credentials: true
 // };
 
@@ -38,10 +38,8 @@ app.use('/api/admin', require('./routes/administrateur'));
 app.use('/api/recu', require('./routes/recu'));
 // app.use("/api/sms", require("./routes/smsRoutes"));
 
-// Route de test
-app.get('/', (req, res) => {
-  res.json({ message: 'API Gestion Abonnements fonctionne !' });
-});
+
+require("./jobs/startReminderJob").startReminderJob();
 
 // Gestionnaire d'erreurs global
 app.use((err, req, res, next) => {
